@@ -1,0 +1,84 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+pool:
+  vmImage: 'vs2017-win2016'
+
+variables:
+- group: keyvault-group-name
+
+trigger:
+- '*'
+
+pr:
+- master
+
+steps:
+- task: DownloadPackage@1
+  displayName: 'Download Package'
+  inputs:
+    feed: 'BuildHelpers'
+    definition: 'BuildHelpers'
+    version: 2.0.0
+
+- powershell: |
+   # Test task for checking environment info
+   # can be disabled unless doing development
+   #gci $ENV:System_ArtifactsDirectory
+   #test-path "$ENV:System_ArtifactsDirectory\buildhelpers.nupkg"
+   #Install-Package "$ENV:System_ArtifactsDirectory\buildhelpers.nupkg"
+
+   #get-command Get-GitChangedFile -syntax
+
+   # Use the environment variables input below to pass secret variables to this script.
+
+   $env:PSModulePath
+
+   #get-module -ListAvailable az.accounts |fl
+
+   #Import-Module Az.Accounts, Az.Automation
+
+   #get-module -ListAvailable az.accounts |fl
+
+   gci C:\Modules\az*
+  errorActionPreference: continue
+  displayName: 'run PS'
+  enabled: false
+
+- task: PowerShell@2
+  displayName: 'PowerShell Script'
+  inputs:
+    targetType: filePath
+    filePath: './.\Build\build.ps1'
+  env:
+    AzureRunbooksCI_TenantID: $(AzureRunbooksCI-TenantID)
+    AzureRunbooksCI_rgname: $(AzureRunbooksCI-rgname)
+    AzureRunbooksCI_aaname_test: $(AzureRunbooksCI-aaname-test)
+    AzureRunbooksCI_sppswd_test: $(AzureRunbooksCI-sppswd-test)
+    AzureRunbooksCI_spuser_test: $(AzureRunbooksCI-spuser-test)
+    AzureRunbooksCI_aaname_prod: $(AzureRunbooksCI-aaname-prod)
+
+- task: PublishTestResults@2
+  displayName: 'Publish Test Results Build/*TestResults_PS*.xml'
+  inputs:
+    testResultsFormat: NUnit
+    testResultsFiles: 'Build/*TestResults_PS*.xml'
+  condition: succeededOrFailed()
+
+- task: Palmmedia.reportgenerator.reportgenerator-build-release-task.reportgenerator@4
+  displayName: ReportGenerator
+  inputs:
+    reports: 'Build/CodeCoverage_PS*.xml'
+    reporttypes: 'HtmlInline_AzurePipelines'
+    sourcedirs: .
+    verbosity: Verbose
+  condition: not(contains(variables['BHCommitMessage'],'!skipcodecoverage'))
+
+- task: PublishCodeCoverageResults@1
+  displayName: 'Publish code coverage from Build/CodeCoverage_PS*.xml'
+  inputs:
+    summaryFileLocation: 'Build/CodeCoverage_PS*.xml'
+    reportDirectory: coveragereport
+  condition: not(contains(variables['BHCommitMessage'],'!skipcodecoverage'))
