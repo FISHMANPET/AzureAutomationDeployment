@@ -124,7 +124,7 @@ Task Test {
             foreach ($file in $codeForVariables) {
                 $filecontent = Get-Content $file -Raw
                 foreach ($type in $sharedResourcesTypes) {
-                    $uses = $filecontent | Select-String -Pattern "$($type.command)\s*(?:-Name)?\s+['`"]([\w\d-]+)['`"]" -AllMatches
+                    $uses = $filecontent | Select-String -Pattern "$($type.command)\s*(?:-Name)?\s+['`"]([\w\d-@]+)['`"]" -AllMatches
                     foreach ($use in $uses.Matches) {
                         Write-Verbose "found command $($type.command) with name $($use.Groups[1].Value)" @Verbose
                         $usedVariables.$($type.cget) += @($use.Groups[1].Value)
